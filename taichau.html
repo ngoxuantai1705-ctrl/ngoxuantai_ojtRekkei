@@ -1,0 +1,939 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#30141b">
+  <title>Sổ tình yêu của Tài và Châu</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com">
+  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Dancing+Script:wght@600;700&family=Playfair+Display:ital,wght@0,600;0,700;1,400;1,600&family=Quicksand:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            kraft: '#fdfbf7', kraftPaper: '#f6eedf', kraftDark: '#d8c4b6',
+            rosevelvet: '#b54457', rosewood: '#4a1525', parchment: '#faf5eb',
+            leather: '#6e3b3b', goldaccent: '#d4af37',
+            tapeYellow: 'rgba(255, 230, 109, 0.75)',
+            tapePink: 'rgba(255, 182, 193, 0.75)',
+            tapeMint: 'rgba(186, 237, 206, 0.75)',
+            tapeLavender: 'rgba(224, 204, 250, 0.75)'
+          },
+          fontFamily: {
+            hand: ['"Dancing Script"', 'cursive'],
+            note: ['"Caveat"', 'cursive'],
+            serif: ['"Playfair Display"', 'serif'],
+            sans: ['"Quicksand"', 'sans-serif']
+          },
+          boxShadow: {
+            book: '0 25px 60px -15px rgba(45, 15, 20, 0.45), 0 0 0 1px rgba(255,255,255,.3) inset',
+            polaroid: '0 10px 25px -4px rgba(0,0,0,.15), 0 4px 6px -2px rgba(0,0,0,.05)',
+            'page-inset-left': 'inset -15px 0 25px -10px rgba(0,0,0,.12)',
+            'page-inset-right': 'inset 15px 0 25px -10px rgba(0,0,0,.12)'
+          }
+        }
+      }
+    };
+  </script>
+
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      background: radial-gradient(circle at 50% 30%, #522730 0%, #30141b 60%, #1a080d 100%);
+      min-height: 100vh;
+      overflow-x: hidden;
+      user-select: none;
+    }
+    input, textarea, select { user-select: text; }
+    #particlesCanvas { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }
+    .book-container { perspective: 2000px; }
+    .book-spine { background: linear-gradient(to right, #38121a, #521d27, #38121a); box-shadow: 0 0 15px rgba(0,0,0,.4) inset; }
+    .washi-tape { position: absolute; height: 24px; width: 110px; opacity: .85; backdrop-filter: blur(1px); box-shadow: 0 1px 3px rgba(0,0,0,.12); border-left: 2px dashed rgba(255,255,255,.4); border-right: 2px dashed rgba(255,255,255,.4); z-index: 20; }
+    .lined-paper { background-color: #faf6ee; background-image: repeating-linear-gradient(transparent, transparent 27px, #e8ddcc 28px); line-height: 28px; }
+    .paperclip { position: absolute; width: 14px; height: 42px; border: 3px solid #b5924b; border-radius: 12px 12px 6px 6px; box-shadow: 1px 2px 4px rgba(0,0,0,.25); z-index: 25; transform: rotate(-10deg); pointer-events: none; }
+    .paperclip::before { content: ''; position: absolute; top: 6px; left: 2px; right: 2px; bottom: 6px; border: 2px solid #b5924b; border-radius: 8px 8px 4px 4px; }
+    .bookmark-ribbon { position: absolute; top: -15px; right: 50px; width: 24px; height: 130px; background: linear-gradient(135deg, #b54457, #801d2d); box-shadow: 2px 4px 10px rgba(0,0,0,.3); z-index: 30; border-radius: 2px 2px 0 0; cursor: pointer; transition: transform .3s; }
+    .bookmark-ribbon:hover { transform: translateY(8px); }
+    .bookmark-ribbon::after { content: ''; position: absolute; bottom: 0; left: 0; border-left: 12px solid transparent; border-right: 12px solid transparent; border-bottom: 12px solid #faf6ee; }
+    .click-burst { position: fixed; pointer-events: none; font-size: 20px; animation: floatUpBurst .9s cubic-bezier(.22,1,.36,1) forwards; z-index: 9999; }
+    @keyframes floatUpBurst {
+      0% { opacity: 1; transform: translate(0,0) scale(.6) rotate(0); }
+      50% { opacity: .9; transform: translate(var(--dx),-45px) scale(1.3) rotate(15deg); }
+      100% { opacity: 0; transform: translate(calc(var(--dx) * 1.5),-90px) scale(1.6) rotate(-20deg); }
+    }
+    .page-turn-anim { animation: softTurn .45s ease-in-out; }
+    @keyframes softTurn { 0% { opacity: .3; transform: scale(.985); } 100% { opacity: 1; transform: scale(1); } }
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-thumb { background: #d8c4b6; border-radius: 3px; }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+    }
+  </style>
+</head>
+
+<body class="font-sans text-stone-800 relative flex flex-col justify-between min-h-screen">
+  <canvas id="particlesCanvas" aria-hidden="true"></canvas>
+
+  <header class="relative z-30 w-full bg-black/30 backdrop-blur-md border-b border-white/10 px-4 py-3">
+    <div class="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-rosevelvet to-amber-200 p-0.5 shadow-md flex items-center justify-center">
+          <div class="w-full h-full rounded-full bg-rosewood flex items-center justify-center text-amber-200"><i class="fa-solid fa-book-open text-lg"></i></div>
+        </div>
+        <div>
+          <h1 class="font-serif font-bold text-lg md:text-xl text-rose-100 tracking-wide" id="headerTitle">Sổ tình yêu của Tài <span class="font-hand text-2xl text-rose-300">&</span> Châu</h1>
+          <p class="text-[11px] text-rose-200/70 font-medium">170507 &amp; 171006</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2 sm:gap-3">
+        <button id="musicToggleBtn" type="button" title="Bật hoặc tắt nhạc" class="px-3 py-2 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-rose-200 text-xs font-medium flex items-center gap-1.5 transition">
+          <i class="fa-solid fa-music" id="musicIcon"></i><span id="musicLabel">Bật nhạc</span>
+        </button>
+        <button id="openCoverEditBtn" type="button" title="Đổi thông tin bìa" class="px-3 py-2 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-amber-200 text-xs font-medium flex items-center gap-1.5 transition">
+          <i class="fa-solid fa-pen-fancy"></i><span class="hidden sm:inline">Sửa bìa</span>
+        </button>
+        <button id="openAddPageModalBtn" type="button" class="px-3.5 py-2 rounded-full bg-gradient-to-r from-rosevelvet to-rose-400 hover:opacity-90 text-white text-xs sm:text-sm font-semibold flex items-center gap-1.5 shadow-lg transition">
+          <i class="fa-solid fa-plus-circle"></i><span>Thêm kỷ niệm</span>
+        </button>
+        <button id="toggleCoverBtn" type="button" title="Đóng / mở bìa sổ" class="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 flex items-center justify-center text-amber-200 transition">
+          <i class="fa-solid fa-book" id="coverIcon"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="relative z-20 flex-1 flex flex-col items-center justify-center p-3 sm:p-6 md:p-8 max-w-6xl mx-auto w-full">
+    <div class="book-container w-full max-w-5xl">
+      <!-- BÌA SỔ -->
+      <div id="bookCoverView" role="button" tabindex="0" aria-label="Mở cuốn sổ" class="relative mx-auto w-full max-w-lg bg-gradient-to-br from-[#5c242c] via-[#45161c] to-[#2b0c11] rounded-2xl p-6 sm:p-10 shadow-book border-4 border-[#78303a] text-center text-amber-100 cursor-pointer transition-all duration-500 hover:scale-[1.01] group">
+        <div class="absolute left-0 top-0 bottom-0 w-8 bg-[#330f14] border-r-2 border-goldaccent/30 rounded-l-xl"></div>
+        <div class="absolute left-10 top-0 bottom-0 w-0.5 bg-goldaccent/20"></div>
+        <div class="border border-goldaccent/40 rounded-xl p-6 sm:p-10 relative">
+          <div class="paperclip top-[-15px] right-[25px]"></div>
+          <div class="w-20 h-20 mx-auto mb-4 rounded-full bg-gradient-to-tr from-goldaccent/30 to-transparent border border-goldaccent/50 flex items-center justify-center text-goldaccent text-3xl shadow-inner"><i class="fa-solid fa-heart-pulse animate-pulse"></i></div>
+          <span class="text-xs uppercase font-serif tracking-[0.25em] text-amber-200/80 block mb-2">Our Love Journey</span>
+          <h2 id="coverTitleDisplay" class="font-serif font-black text-3xl sm:text-4xl text-amber-100 tracking-wide mb-3">Sổ Kỷ Niệm</h2>
+          <div class="w-32 h-0.5 bg-gradient-to-r from-transparent via-goldaccent to-transparent mx-auto mb-4"></div>
+          <div class="font-hand text-3xl sm:text-4xl text-rose-300 font-bold mb-6"><span id="coverCoupleDisplay">Tài &amp; Châu</span></div>
+          <p id="coverSubDisplay" class="text-xs sm:text-sm text-amber-200/80 italic max-w-xs mx-auto leading-relaxed mb-6">"Mỗi khoảnh khắc bên nhau đều là một trang nhật ký ngọt ngào."</p>
+          <div class="inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-goldaccent/20 hover:bg-goldaccent/30 border border-goldaccent/60 text-amber-200 text-xs sm:text-sm font-bold tracking-wider uppercase transition shadow-md group-hover:bg-goldaccent group-hover:text-stone-900"><span>Chạm để mở</span><i class="fa-solid fa-arrow-right text-xs"></i></div>
+        </div>
+        <div class="absolute top-2 left-2 text-goldaccent/50 text-xl"><i class="fa-solid fa-compass-drafting"></i></div>
+        <div class="absolute top-2 right-2 text-goldaccent/50 text-xl rotate-90"><i class="fa-solid fa-compass-drafting"></i></div>
+        <div class="absolute bottom-2 left-2 text-goldaccent/50 text-xl -rotate-90"><i class="fa-solid fa-compass-drafting"></i></div>
+        <div class="absolute bottom-2 right-2 text-goldaccent/50 text-xl rotate-180"><i class="fa-solid fa-compass-drafting"></i></div>
+      </div>
+
+      <!-- TRANG SÁCH MỞ -->
+      <div id="bookSpreadView" class="hidden relative w-full bg-[#e3d7c5] p-2.5 sm:p-4 md:p-6 rounded-3xl shadow-book border-[6px] border-[#42171f]">
+        <button id="bookmarkBtn" type="button" aria-label="Về kỷ niệm đầu tiên" title="Về kỷ niệm đầu tiên" class="bookmark-ribbon border-0"></button>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-0 relative bg-kraft rounded-2xl overflow-hidden border border-amber-900/10 min-h-[580px] md:min-h-[640px]">
+          <div class="hidden md:block absolute left-1/2 top-0 bottom-0 w-8 -translate-x-1/2 book-spine z-20 pointer-events-none opacity-40"></div>
+          <div class="hidden md:block absolute left-1/2 top-0 bottom-0 w-0.5 -translate-x-1/2 bg-amber-950/20 z-20 pointer-events-none"></div>
+
+          <!-- TRANG TRÁI: ẢNH POLAROID -->
+          <section id="leftPage" class="relative p-5 sm:p-7 md:p-8 flex flex-col justify-between bg-kraftPaper shadow-page-inset-left border-b md:border-b-0 md:border-r border-amber-900/15 page-turn-anim">
+            <div class="washi-tape -top-2 left-1/2 -translate-x-1/2 bg-tapePink rotate-[-2deg]"></div>
+            <div class="flex items-center justify-between gap-2 mb-3 text-stone-500 text-xs">
+              <span class="inline-flex items-center gap-1.5 font-semibold text-rosevelvet bg-rose-50/80 px-2.5 py-1 rounded-full border border-rose-200">
+                <i class="fa-regular fa-calendar"></i><span id="dateVal">--/--/----</span>
+              </span>
+              <span id="pageMoodDisplay" class="font-hand text-lg text-stone-600 flex items-center gap-1">
+                <span id="moodEmoji">✨</span><span id="moodText">Hạnh phúc</span>
+              </span>
+            </div>
+            <div class="my-auto transition-transform duration-300 relative group">
+              <div id="polaroidCard" class="bg-white p-3 sm:p-4 rounded-sm shadow-polaroid border border-stone-200 text-center max-w-sm mx-auto transform transition duration-300 hover:scale-[1.01]" style="transform: rotate(-1.5deg)">
+                <div class="relative w-full aspect-[4/3] bg-stone-100 overflow-hidden rounded-sm border border-stone-200/80 mb-3 group/img flex items-center justify-center">
+                  <img id="currentPhoto" src="" alt="Ảnh kỷ niệm" class="w-full h-full object-cover transition-transform duration-500 group-hover/img:scale-105">
+                  <div id="noPhotoPlaceholder" class="hidden text-stone-400 flex-col items-center justify-center">
+                    <i class="fa-regular fa-image text-3xl mb-1"></i>
+                    <span class="text-xs">Chưa có ảnh</span>
+                  </div>
+                  <div class="absolute inset-0 bg-black/40 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center">
+                    <label class="px-3 py-2 rounded-full bg-white text-stone-800 text-xs font-bold cursor-pointer hover:bg-rose-50 shadow-md">
+                      <i class="fa-solid fa-camera mr-1 text-rosevelvet"></i>Đổi ảnh
+                      <input type="file" id="inlinePhotoUpload" accept="image/*" class="hidden">
+                    </label>
+                  </div>
+                </div>
+                <p id="polaroidCaption" class="font-note text-lg sm:text-xl text-stone-700 leading-snug tracking-wide italic min-h-[28px] px-2"></p>
+                <div class="mt-2 flex items-center justify-center gap-1 text-[11px] text-stone-500">
+                  <i class="fa-solid fa-location-dot text-rose-400"></i><span id="polaroidLocation">Chưa có địa điểm</span>
+                </div>
+              </div>
+              <div class="paperclip top-[-8px] left-[30px]"></div>
+            </div>
+            <div class="pt-3 mt-5 border-t border-amber-900/10 flex items-center justify-between text-xs text-stone-400">
+              <span class="font-serif italic">Our Love Journey</span>
+              <span id="pageNumberLeft" class="font-note font-bold text-base text-stone-500">Trang 1</span>
+            </div>
+          </section>
+
+          <!-- TRANG PHẢI: BỨC THƯ TÂM SỰ -->
+          <section id="rightPage" class="relative p-5 sm:p-7 md:p-8 flex flex-col justify-between lined-paper shadow-page-inset-right page-turn-anim">
+            <div class="washi-tape -top-2 right-12 bg-tapeYellow rotate-[3deg]"></div>
+            <div>
+              <div class="flex items-start justify-between gap-3 mb-4">
+                <div>
+                  <span class="text-[10px] uppercase font-bold tracking-widest text-rose-500 block">Kỷ niệm đáng nhớ</span>
+                  <h3 id="letterTitle" class="font-serif font-bold text-xl sm:text-2xl text-stone-900 leading-tight break-words"></h3>
+                </div>
+                <div class="flex items-center gap-1 shrink-0">
+                  <button id="quickEditBtn" type="button" title="Chỉnh sửa kỷ niệm" class="w-8 h-8 rounded-full bg-white/80 hover:bg-rose-50 border border-stone-200 text-stone-600 hover:text-rosevelvet flex items-center justify-center text-xs shadow-sm"><i class="fa-solid fa-pen"></i></button>
+                  <button id="deletePageBtn" type="button" title="Xóa kỷ niệm" class="w-8 h-8 rounded-full bg-white/80 hover:bg-red-50 border border-stone-200 text-stone-400 hover:text-red-500 flex items-center justify-center text-xs shadow-sm"><i class="fa-solid fa-trash"></i></button>
+                </div>
+              </div>
+              <div class="relative">
+                <i class="fa-solid fa-quote-left text-rose-200 text-2xl absolute -top-3 -left-2 opacity-50"></i>
+                <p id="letterBody" class="font-note text-xl sm:text-2xl text-stone-800 leading-[32px] sm:leading-[35px] font-semibold whitespace-pre-line break-words px-2"></p>
+              </div>
+            </div>
+            <div class="mt-6 pt-4">
+              <div class="flex items-end justify-between">
+                <div class="hidden sm:flex items-center gap-2 border-2 border-dashed border-rose-300 p-2 rounded-lg bg-white/60">
+                  <span class="text-2xl">💌</span>
+                  <div class="text-[10px] text-stone-500 leading-tight">
+                    <span class="font-bold text-rosevelvet uppercase block">Love Airmail</span>
+                    <span>Forever &amp; Always</span>
+                  </div>
+                </div>
+                <div class="text-right flex-1">
+                  <span id="letterSign" class="font-hand font-bold text-2xl sm:text-3xl text-rosevelvet block"></span>
+                </div>
+              </div>
+              <div class="mt-4 pt-2 border-t border-amber-900/10 flex items-center justify-between gap-2 text-xs text-stone-400">
+                <span id="pagesSummary" class="text-[11px]">Kỷ niệm 1 / 1</span>
+                <span id="pageNumberRight" class="font-note font-bold text-base text-stone-500">Trang 2</span>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+
+    <!-- THANH ĐIỀU HƯỚNG DƯỚI SỔ -->
+    <nav id="scrapbookControls" aria-label="Điều hướng kỷ niệm" class="hidden mt-6 w-full max-w-2xl flex flex-wrap items-center justify-center gap-3 bg-black/40 backdrop-blur-md p-2.5 rounded-2xl sm:rounded-full border border-white/10 shadow-lg">
+      <button id="prevPageBtn" type="button" class="px-4 py-2 rounded-full bg-white/10 hover:bg-white/20 text-rose-100 font-semibold text-xs sm:text-sm flex items-center gap-1.5"><i class="fa-solid fa-chevron-left text-xs"></i><span>Trước</span></button>
+      <select id="tocSelect" aria-label="Chọn kỷ niệm" class="px-3 py-2 rounded-full bg-stone-900 text-rose-200 border border-white/20 text-xs focus:outline-none max-w-[180px] sm:max-w-[260px] truncate"></select>
+      <button id="nextPageBtn" type="button" class="px-4 py-2 rounded-full bg-white/10 hover:bg-white/20 text-rose-100 font-semibold text-xs sm:text-sm flex items-center gap-1.5"><span>Tiếp</span><i class="fa-solid fa-chevron-right text-xs"></i></button>
+      <button id="burstHeartBtn" type="button" title="Bắn pháo hoa trái tim" class="w-9 h-9 rounded-full bg-rosevelvet hover:bg-rose-600 text-white flex items-center justify-center shadow-md"><i class="fa-solid fa-heart"></i></button>
+    </nav>
+  </main>
+
+  <footer class="relative z-20 py-3 text-center text-xs text-rose-200/60 border-t border-white/5">
+    <p>Cuốn sổ tình yêu dành riêng cho hai đứa mình ❤️</p>
+  </footer>
+
+  <!-- MODAL THÊM / SỬA KỶ NIỆM -->
+  <div id="pageModal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 hidden" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="bg-[#faf6ee] rounded-3xl max-w-lg w-full p-5 sm:p-7 shadow-2xl border-2 border-stone-300 max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between pb-3 border-b border-stone-200 mb-4">
+        <h3 id="modalTitle" class="font-serif font-bold text-xl text-rosewood"><i class="fa-solid fa-feather-pointed text-rosevelvet"></i> Kỷ niệm</h3>
+        <button id="closeModalBtn" type="button" aria-label="Đóng" class="text-stone-400 hover:text-stone-700 text-lg"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <form id="memoryForm" class="space-y-4 text-xs sm:text-sm">
+        <div class="p-3 bg-white rounded-2xl border border-stone-200 space-y-2">
+          <label class="block font-bold text-stone-800" for="modalFileInput">Hình ảnh kỷ niệm</label>
+          <label class="block px-3 py-2 bg-rose-50 border border-dashed border-rose-300 rounded-xl text-center text-rosevelvet font-semibold cursor-pointer hover:bg-rose-100">
+            <i class="fa-solid fa-upload mr-1"></i> Tải ảnh từ thiết bị
+            <input type="file" id="modalFileInput" accept="image/*" class="hidden">
+          </label>
+          <div class="flex items-center gap-2">
+            <span class="text-stone-400 text-xs">Hoặc URL ảnh</span>
+            <input type="url" id="modalPhotoUrl" placeholder="https://link-anh.jpg" class="min-w-0 flex-1 px-3 py-2 rounded-xl border border-stone-200 focus:ring-1 focus:ring-rosevelvet focus:outline-none">
+          </div>
+          <div id="photoPreviewBox" class="w-full h-32 rounded-xl bg-stone-100 border border-stone-200 overflow-hidden relative hidden">
+            <img id="photoPreviewImg" src="" alt="Xem trước ảnh" class="w-full h-full object-cover">
+            <button id="clearPhotoBtn" type="button" class="absolute top-2 right-2 bg-black/60 text-white rounded-full px-2 py-1 text-xs">Xóa ảnh</button>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label for="modalCaption" class="block font-semibold text-stone-700 mb-1">Chú thích dưới ảnh</label>
+            <input type="text" id="modalCaption" placeholder="Ví dụ: Nụ cười hôm ấy..." class="w-full px-3 py-2 rounded-xl border border-stone-200 focus:ring-1 focus:ring-rosevelvet focus:outline-none" maxlength="180">
+          </div>
+          <div>
+            <label for="modalLocation" class="block font-semibold text-stone-700 mb-1">Địa điểm</label>
+            <input type="text" id="modalLocation" placeholder="Ví dụ: Quán quen, Hà Nội" class="w-full px-3 py-2 rounded-xl border border-stone-200 focus:ring-1 focus:ring-rosevelvet focus:outline-none" maxlength="120">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label for="modalDate" class="block font-semibold text-stone-700 mb-1">Ngày diễn ra *</label>
+            <input type="date" id="modalDate" class="w-full min-w-0 px-3 py-2 rounded-xl border border-stone-200 focus:ring-1 focus:ring-rosevelvet focus:outline-none" required>
+          </div>
+          <div>
+            <label for="modalMood" class="block font-semibold text-stone-700 mb-1">Cảm xúc</label>
+            <select id="modalMood" class="w-full min-w-0 px-3 py-2 rounded-xl border border-stone-200 focus:ring-1 focus:ring-rosevelvet focus:outline-none">
+              <option value="✨ Hạnh phúc">✨ Hạnh phúc</option>
+              <option value="💖 Say đắm">💖 Say đắm</option>
+              <option value="☕ Bình yên">☕ Bình yên</option>
+              <option value="🥰 Nhớ nhung">🥰 Nhớ nhung</option>
+              <option value="🎉 Vui vẻ">🎉 Vui vẻ</option>
+              <option value="🌟 Kỳ diệu">🌟 Kỳ diệu</option>
+              <option value="☔ Ngọt ngào">☔ Ngọt ngào</option>
+              <option value="🌊 Phiêu lưu">🌊 Phiêu lưu</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label for="modalLetterTitle" class="block font-semibold text-stone-700 mb-1">Tiêu đề tâm sự *</label>
+          <input type="text" id="modalLetterTitle" placeholder="Tiêu đề trang kỷ niệm" class="w-full px-3 py-2 rounded-xl border border-stone-200 focus:ring-1 focus:ring-rosevelvet focus:outline-none" required maxlength="160">
+        </div>
+
+        <div>
+          <label for="modalLetterBody" class="block font-semibold text-stone-700 mb-1">Nội dung nhắn gửi *</label>
+          <textarea id="modalLetterBody" rows="5" placeholder="Những lời muốn nói cùng người ấy..." class="w-full px-3 py-2 rounded-xl border border-stone-200 focus:ring-1 focus:ring-rosevelvet focus:outline-none leading-relaxed" required maxlength="5000"></textarea>
+        </div>
+
+        <div>
+          <label for="modalLetterSign" class="block font-semibold text-stone-700 mb-1">Lời kết / Chữ ký</label>
+          <input type="text" id="modalLetterSign" placeholder="Ví dụ: Yêu em nhiều ❤️" class="w-full px-3 py-2 rounded-xl border border-stone-200 focus:ring-1 focus:ring-rosevelvet focus:outline-none" maxlength="120">
+        </div>
+
+        <div class="pt-3 flex items-center justify-end gap-2 border-t border-stone-200">
+          <button type="button" id="cancelModalBtn" class="px-4 py-2 rounded-xl bg-stone-200 hover:bg-stone-300 text-stone-700 font-semibold">Hủy</button>
+          <button type="submit" class="px-5 py-2 rounded-xl bg-gradient-to-r from-rosevelvet to-rose-500 text-white font-semibold shadow-md">Lưu kỷ niệm</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL SỬA BÌA SỔ -->
+  <div id="coverModal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 hidden" role="dialog" aria-modal="true">
+    <div class="bg-[#faf6ee] rounded-3xl max-w-md w-full p-5 sm:p-7 shadow-2xl border-2 border-stone-300">
+      <div class="flex items-center justify-between pb-3 border-b border-stone-200 mb-4">
+        <h3 class="font-serif font-bold text-xl text-rosewood"><i class="fa-solid fa-pen-nib text-rosevelvet"></i> Thay đổi thông tin bìa</h3>
+        <button id="closeCoverModalBtn" type="button" class="text-stone-400 hover:text-stone-700 text-lg"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <form id="coverForm" class="space-y-3 text-xs sm:text-sm">
+        <div>
+          <label for="coverTitleInput" class="block font-semibold text-stone-700 mb-1">Tiêu đề bìa</label>
+          <input type="text" id="coverTitleInput" class="w-full px-3 py-2 rounded-xl border border-stone-200 focus:ring-1 focus:ring-rosevelvet focus:outline-none" required>
+        </div>
+        <div>
+          <label for="coverCoupleInput" class="block font-semibold text-stone-700 mb-1">Tên hai bạn</label>
+          <input type="text" id="coverCoupleInput" class="w-full px-3 py-2 rounded-xl border border-stone-200 focus:ring-1 focus:ring-rosevelvet focus:outline-none" required>
+        </div>
+        <div>
+          <label for="coverQuoteInput" class="block font-semibold text-stone-700 mb-1">Câu châm ngôn / Trích dẫn</label>
+          <textarea id="coverQuoteInput" rows="3" class="w-full px-3 py-2 rounded-xl border border-stone-200 focus:ring-1 focus:ring-rosevelvet focus:outline-none" required></textarea>
+        </div>
+        <div class="pt-3 flex items-center justify-end gap-2 border-t border-stone-200">
+          <button type="button" id="cancelCoverModalBtn" class="px-4 py-2 rounded-xl bg-stone-200 hover:bg-stone-300 text-stone-700 font-semibold">Hủy</button>
+          <button type="submit" class="px-5 py-2 rounded-xl bg-gradient-to-r from-rosevelvet to-rose-500 text-white font-semibold shadow-md">Lưu thay đổi</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    'use strict';
+
+    const STORAGE_KEY = 'our_love_scrapbook_custom_clean';
+
+    // Âm thanh lật trang & guitar
+    class RomanticAcousticSynth {
+      constructor() {
+        this.ctx = null;
+        this.isPlaying = false;
+        this.step = 0;
+        this.timer = null;
+        this.chords = [
+          [261.63, 329.63, 392.00, 493.88],
+          [220.00, 261.63, 329.63, 392.00],
+          [174.61, 220.00, 261.63, 329.63],
+          [196.00, 246.94, 293.66, 392.00]
+        ];
+      }
+      init() {
+        if (this.ctx) return;
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (AudioContextClass) this.ctx = new AudioContextClass();
+      }
+      playPluck(freq, offset = 0, duration = 1.2) {
+        if (!this.ctx) return;
+        const startAt = this.ctx.currentTime + offset;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, startAt);
+        gain.gain.setValueAtTime(0.001, startAt);
+        gain.gain.linearRampToValueAtTime(0.035, startAt + 0.05);
+        gain.gain.exponentialRampToValueAtTime(0.0001, startAt + duration);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(startAt);
+        osc.stop(startAt + duration + 0.02);
+      }
+      playTurnSound() {
+        this.init();
+        if (!this.ctx) return;
+        if (this.ctx.state === 'suspended') this.ctx.resume().catch(() => {});
+        this.playPluck(380, 0, 0.15);
+        this.playPluck(460, 0.04, 0.18);
+      }
+      start() {
+        this.init();
+        if (!this.ctx) {
+          alert('Trình duyệt không hỗ trợ Web Audio.');
+          return false;
+        }
+        if (this.ctx.state === 'suspended') this.ctx.resume().catch(() => {});
+        this.isPlaying = true;
+        this.loop();
+        return true;
+      }
+      stop() {
+        this.isPlaying = false;
+        if (this.timer) clearTimeout(this.timer);
+        this.timer = null;
+      }
+      loop() {
+        if (!this.isPlaying) return;
+        const chord = this.chords[Math.floor(this.step / 4) % this.chords.length];
+        this.playPluck(chord[this.step % 4]);
+        this.step++;
+        this.timer = setTimeout(() => this.loop(), 550);
+      }
+    }
+
+    const synth = new RomanticAcousticSynth();
+
+    function getLocalDate() {
+      const now = new Date();
+      return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    }
+
+    function createBlankMemory() {
+      return {
+        id: Date.now(),
+        photo: '',
+        caption: 'Kỷ niệm đầu tiên của chúng mình',
+        location: 'Hà Nội',
+        date: getLocalDate(),
+        mood: '✨ Hạnh phúc',
+        letterTitle: 'Những ngày đầu bên nhau',
+        letterBody: 'Hãy nhấn vào biểu tượng chiếc bút ở góc trên để sửa lại câu chuyện và địa điểm của riêng hai bạn nhé!',
+        letterSign: 'Yêu em ❤️'
+      };
+    }
+
+    function getInitialData() {
+      return {
+        cover: {
+          title: 'Sổ Kỷ Niệm',
+          couple: 'Tài & Châu',
+          quote: 'Mỗi khoảnh khắc bên nhau đều là một trang nhật ký ngọt ngào.'
+        },
+        pages: [createBlankMemory()]
+      };
+    }
+
+    function getStore() {
+      try {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (parsed && Array.isArray(parsed.pages) && parsed.pages.length > 0) {
+            return parsed;
+          }
+        }
+      } catch (e) {
+        console.warn('Lỗi đọc dữ liệu:', e);
+      }
+      return getInitialData();
+    }
+
+    function saveStore(data) {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        return true;
+      } catch (error) {
+        alert('Dung lượng trình duyệt đầy hoặc ảnh quá lớn. Vui lòng thử lại với ảnh nhỏ hơn!');
+        return false;
+      }
+    }
+
+    function formatDateDisplay(dateStr) {
+      if (!dateStr) return 'Chưa có ngày';
+      const parts = dateStr.split('-');
+      if (parts.length === 3) {
+        return `${parts[2]}/${parts[1]}/${parts[0]}`;
+      }
+      return dateStr;
+    }
+
+    let appData = getStore();
+    let currentPageIndex = 0;
+    let isCoverMode = true;
+    let isEditingMode = false;
+    let editingId = null;
+    let currentPhotoValue = '';
+
+    const $ = id => document.getElementById(id);
+    const bookCoverView = $('bookCoverView');
+    const bookSpreadView = $('bookSpreadView');
+    const scrapbookControls = $('scrapbookControls');
+    const currentPhoto = $('currentPhoto');
+    const noPhotoPlaceholder = $('noPhotoPlaceholder');
+    const polaroidCaption = $('polaroidCaption');
+    const polaroidLocation = $('polaroidLocation');
+    const pageDateDisplay = $('dateVal');
+    const moodEmoji = $('moodEmoji');
+    const moodText = $('moodText');
+    const pageNumberLeft = $('pageNumberLeft');
+    const polaroidCard = $('polaroidCard');
+    const letterTitle = $('letterTitle');
+    const letterBody = $('letterBody');
+    const letterSign = $('letterSign');
+    const pagesSummary = $('pagesSummary');
+    const pageNumberRight = $('pageNumberRight');
+    const tocSelect = $('tocSelect');
+
+    const pageModal = $('pageModal');
+    const memoryForm = $('memoryForm');
+    const modalFileInput = $('modalFileInput');
+    const modalPhotoUrl = $('modalPhotoUrl');
+    const photoPreviewBox = $('photoPreviewBox');
+    const photoPreviewImg = $('photoPreviewImg');
+
+    const coverModal = $('coverModal');
+    const coverForm = $('coverForm');
+
+    function updateTOC() {
+      tocSelect.replaceChildren();
+      appData.pages.forEach((page, index) => {
+        const option = document.createElement('option');
+        option.value = String(index);
+        option.textContent = `${index + 1}. ${page.letterTitle || page.caption || 'Kỷ niệm'}`;
+        option.selected = index === currentPageIndex;
+        tocSelect.appendChild(option);
+      });
+    }
+
+    function renderScrapbookPage(index, animate = true) {
+      if (!appData.pages.length) {
+        appData.pages.push(createBlankMemory());
+      }
+      currentPageIndex = Math.max(0, Math.min(index, appData.pages.length - 1));
+      const page = appData.pages[currentPageIndex];
+
+      // Xử lý ảnh
+      if (page.photo) {
+        currentPhoto.src = page.photo;
+        currentPhoto.classList.remove('hidden');
+        noPhotoPlaceholder.classList.add('hidden');
+      } else {
+        currentPhoto.removeAttribute('src');
+        currentPhoto.classList.add('hidden');
+        noPhotoPlaceholder.classList.remove('hidden');
+      }
+
+      polaroidCaption.textContent = page.caption ? `“${page.caption}”` : '';
+      polaroidLocation.textContent = page.location || 'Chưa có địa điểm';
+      pageDateDisplay.textContent = formatDateDisplay(page.date);
+
+      const moodParts = (page.mood || '✨ Hạnh phúc').split(' ');
+      moodEmoji.textContent = moodParts[0] || '✨';
+      moodText.textContent = moodParts.slice(1).join(' ') || 'Hạnh phúc';
+
+      letterTitle.textContent = page.letterTitle || 'Không có tiêu đề';
+      letterBody.textContent = page.letterBody || '';
+      letterSign.textContent = page.letterSign || '';
+      pageNumberLeft.textContent = `Trang ${currentPageIndex * 2 + 1}`;
+      pageNumberRight.textContent = `Trang ${currentPageIndex * 2 + 2}`;
+      pagesSummary.textContent = `Kỷ niệm ${currentPageIndex + 1} / ${appData.pages.length}`;
+
+      $('prevPageBtn').disabled = currentPageIndex === 0;
+      $('nextPageBtn').disabled = currentPageIndex === appData.pages.length - 1;
+      $('prevPageBtn').classList.toggle('opacity-40', currentPageIndex === 0);
+      $('nextPageBtn').classList.toggle('opacity-40', currentPageIndex === appData.pages.length - 1);
+
+      const angles = [-2, 1.5, -1, 2, -1.8];
+      polaroidCard.style.transform = `rotate(${angles[currentPageIndex % angles.length]}deg)`;
+      updateTOC();
+
+      if (animate) {
+        ['leftPage', 'rightPage'].forEach(id => {
+          const el = $(id);
+          el.classList.remove('page-turn-anim');
+          void el.offsetWidth;
+          el.classList.add('page-turn-anim');
+        });
+        synth.playTurnSound();
+      }
+    }
+
+    function showBookSpread() {
+      isCoverMode = false;
+      bookCoverView.classList.add('hidden');
+      bookSpreadView.classList.remove('hidden');
+      scrapbookControls.classList.remove('hidden');
+      $('coverIcon').className = 'fa-solid fa-book-open';
+      renderScrapbookPage(currentPageIndex, true);
+    }
+
+    function showBookCover() {
+      isCoverMode = true;
+      bookSpreadView.classList.add('hidden');
+      scrapbookControls.classList.add('hidden');
+      bookCoverView.classList.remove('hidden');
+      $('coverIcon').className = 'fa-solid fa-book';
+      synth.playTurnSound();
+    }
+
+    $('toggleCoverBtn').addEventListener('click', () => isCoverMode ? showBookSpread() : showBookCover());
+    bookCoverView.addEventListener('click', showBookSpread);
+    bookCoverView.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        showBookSpread();
+      }
+    });
+
+    $('bookmarkBtn').addEventListener('click', e => {
+      e.stopPropagation();
+      renderScrapbookPage(0, true);
+      launchHeartsConfetti();
+    });
+
+    $('prevPageBtn').addEventListener('click', () => {
+      if (currentPageIndex > 0) renderScrapbookPage(currentPageIndex - 1);
+      else showBookCover();
+    });
+
+    $('nextPageBtn').addEventListener('click', () => {
+      if (currentPageIndex < appData.pages.length - 1) renderScrapbookPage(currentPageIndex + 1);
+      else launchHeartsConfetti();
+    });
+
+    tocSelect.addEventListener('change', e => renderScrapbookPage(Number(e.target.value)));
+
+    function compressImage(file, maxDimension = 1200, quality = 0.8) {
+      return new Promise((resolve, reject) => {
+        if (!file || !file.type.startsWith('image/')) {
+          reject(new Error('Tệp không phải là ảnh hợp lệ.'));
+          return;
+        }
+        const reader = new FileReader();
+        reader.onerror = () => reject(new Error('Không thể đọc file ảnh.'));
+        reader.onload = () => {
+          const img = new Image();
+          img.onerror = () => reject(new Error('Lỗi tải ảnh.'));
+          img.onload = () => {
+            const scale = Math.min(1, maxDimension / Math.max(img.naturalWidth, img.naturalHeight));
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.max(1, Math.round(img.naturalWidth * scale));
+            canvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            resolve(canvas.toDataURL('image/jpeg', quality));
+          };
+          img.src = reader.result;
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    $('inlinePhotoUpload').addEventListener('change', async e => {
+      const file = e.target.files[0];
+      if (!file) return;
+      try {
+        const compressed = await compressImage(file);
+        appData.pages[currentPageIndex].photo = compressed;
+        if (saveStore(appData)) {
+          renderScrapbookPage(currentPageIndex, false);
+          launchHeartsConfetti();
+        }
+      } catch (err) {
+        alert(err.message || 'Không thể xử lý ảnh.');
+      } finally {
+        e.target.value = '';
+      }
+    });
+
+    function setPhotoPreview(src) {
+      if (!src) {
+        photoPreviewImg.removeAttribute('src');
+        photoPreviewBox.classList.add('hidden');
+        return;
+      }
+      photoPreviewImg.src = src;
+      photoPreviewBox.classList.remove('hidden');
+    }
+
+    function openModalForAdd() {
+      isEditingMode = false;
+      editingId = null;
+      currentPhotoValue = '';
+      memoryForm.reset();
+      setPhotoPreview('');
+      $('modalTitle').innerHTML = '<i class="fa-solid fa-plus-circle text-rosevelvet"></i> Thêm kỷ niệm mới';
+      $('modalDate').value = getLocalDate();
+      $('modalLocation').value = '';
+      pageModal.classList.remove('hidden');
+      $('modalCaption').focus();
+    }
+
+    function openModalForEdit() {
+      const page = appData.pages[currentPageIndex];
+      if (!page) return;
+      isEditingMode = true;
+      editingId = page.id;
+      currentPhotoValue = page.photo || '';
+      memoryForm.reset();
+
+      // Điền chính xác dữ liệu hiện tại vào Form
+      $('modalCaption').value = page.caption || '';
+      $('modalLocation').value = page.location || '';
+      $('modalDate').value = page.date ? page.date : getLocalDate();
+      $('modalMood').value = page.mood || '✨ Hạnh phúc';
+      $('modalLetterTitle').value = page.letterTitle || '';
+      $('modalLetterBody').value = page.letterBody || '';
+      $('modalLetterSign').value = page.letterSign || '';
+      modalPhotoUrl.value = currentPhotoValue.startsWith('http') ? currentPhotoValue : '';
+
+      setPhotoPreview(currentPhotoValue);
+      $('modalTitle').innerHTML = '<i class="fa-solid fa-pen-nib text-rosevelvet"></i> Chỉnh sửa kỷ niệm';
+      pageModal.classList.remove('hidden');
+      $('modalCaption').focus();
+    }
+
+    $('openAddPageModalBtn').addEventListener('click', () => {
+      if (isCoverMode) showBookSpread();
+      openModalForAdd();
+    });
+    $('quickEditBtn').addEventListener('click', openModalForEdit);
+
+    function closeModal() { pageModal.classList.add('hidden'); }
+    $('closeModalBtn').addEventListener('click', closeModal);
+    $('cancelModalBtn').addEventListener('click', closeModal);
+
+    modalFileInput.addEventListener('change', async e => {
+      const file = e.target.files[0];
+      if (!file) return;
+      try {
+        currentPhotoValue = await compressImage(file);
+        modalPhotoUrl.value = '';
+        setPhotoPreview(currentPhotoValue);
+      } catch (err) {
+        alert(err.message || 'Lỗi xử lý ảnh.');
+      }
+    });
+
+    modalPhotoUrl.addEventListener('input', () => {
+      const url = modalPhotoUrl.value.trim();
+      currentPhotoValue = url;
+      setPhotoPreview(url);
+    });
+
+    $('clearPhotoBtn').addEventListener('click', () => {
+      currentPhotoValue = '';
+      modalFileInput.value = '';
+      modalPhotoUrl.value = '';
+      setPhotoPreview('');
+    });
+
+    memoryForm.addEventListener('submit', e => {
+      e.preventDefault();
+      const updatedDate = $('modalDate').value;
+      const updatedLocation = $('modalLocation').value.trim();
+
+      const newPageData = {
+        id: isEditingMode ? editingId : Date.now(),
+        photo: currentPhotoValue,
+        caption: $('modalCaption').value.trim(),
+        location: updatedLocation,
+        date: updatedDate,
+        mood: $('modalMood').value,
+        letterTitle: $('modalLetterTitle').value.trim(),
+        letterBody: $('modalLetterBody').value.trim(),
+        letterSign: $('modalLetterSign').value.trim()
+      };
+
+      if (!newPageData.date || !newPageData.letterTitle || !newPageData.letterBody) {
+        alert('Vui lòng điền đủ Ngày, Tiêu đề và Nội dung tâm sự.');
+        return;
+      }
+
+      if (isEditingMode) {
+        const index = appData.pages.findIndex(p => p.id === editingId);
+        if (index >= 0) {
+          appData.pages[index] = newPageData;
+          currentPageIndex = index;
+        }
+      } else {
+        appData.pages.push(newPageData);
+        currentPageIndex = appData.pages.length - 1;
+      }
+
+      if (saveStore(appData)) {
+        closeModal();
+        renderScrapbookPage(currentPageIndex, true);
+        launchHeartsConfetti();
+      }
+    });
+
+    $('deletePageBtn').addEventListener('click', () => {
+      if (appData.pages.length <= 1) {
+        alert('Cuốn sổ cần có ít nhất một trang kỷ niệm!');
+        return;
+      }
+      if (!confirm('Bạn có chắc chắn muốn xóa kỷ niệm này?')) return;
+
+      appData.pages.splice(currentPageIndex, 1);
+      currentPageIndex = Math.min(currentPageIndex, appData.pages.length - 1);
+      if (saveStore(appData)) {
+        renderScrapbookPage(currentPageIndex, true);
+      }
+    });
+
+    // CHỈNH SỬA THÔNG TIN BÌA
+    $('openCoverEditBtn').addEventListener('click', () => {
+      $('coverTitleInput').value = appData.cover.title || '';
+      $('coverCoupleInput').value = appData.cover.couple || '';
+      $('coverQuoteInput').value = appData.cover.quote || '';
+      coverModal.classList.remove('hidden');
+    });
+
+    function closeCoverModal() { coverModal.classList.add('hidden'); }
+    $('closeCoverModalBtn').addEventListener('click', closeCoverModal);
+    $('cancelCoverModalBtn').addEventListener('click', closeCoverModal);
+
+    coverForm.addEventListener('submit', e => {
+      e.preventDefault();
+      appData.cover = {
+        title: $('coverTitleInput').value.trim(),
+        couple: $('coverCoupleInput').value.trim(),
+        quote: $('coverQuoteInput').value.trim()
+      };
+      if (saveStore(appData)) {
+        updateCoverUI();
+        closeCoverModal();
+        launchHeartsConfetti();
+      }
+    });
+
+    function updateCoverUI() {
+      $('coverTitleDisplay').textContent = appData.cover.title;
+      $('coverCoupleDisplay').textContent = appData.cover.couple;
+      $('coverSubDisplay').textContent = `“${appData.cover.quote}”`;
+      $('headerTitle').innerHTML = `${appData.cover.couple}`;
+    }
+
+    $('musicToggleBtn').addEventListener('click', () => {
+      if (synth.isPlaying) {
+        synth.stop();
+        $('musicIcon').className = 'fa-solid fa-music';
+        $('musicLabel').textContent = 'Bật nhạc';
+        $('musicToggleBtn').classList.remove('bg-rosevelvet/80', 'text-white');
+      } else if (synth.start()) {
+        $('musicIcon').className = 'fa-solid fa-volume-high';
+        $('musicLabel').textContent = 'Tắt nhạc';
+        $('musicToggleBtn').classList.add('bg-rosevelvet/80', 'text-white');
+      }
+    });
+
+    function launchHeartsConfetti() {
+      if (typeof confetti === 'function') {
+        confetti({
+          particleCount: 40,
+          spread: 60,
+          origin: { y: 0.65 },
+          colors: ['#ff758f', '#b54457', '#ffd166', '#ffb3c1']
+        });
+      }
+    }
+    $('burstHeartBtn').addEventListener('click', launchHeartsConfetti);
+
+    window.addEventListener('click', e => {
+      if (e.target.closest('button, input, select, textarea, label, a, form')) return;
+      const heart = document.createElement('div');
+      heart.className = 'click-burst';
+      heart.textContent = ['❤️', '💖', '💕', '✨', '🌸'][Math.floor(Math.random() * 5)];
+      heart.style.left = `${e.clientX}px`;
+      heart.style.top = `${e.clientY}px`;
+      heart.style.setProperty('--dx', `${Math.random() * 60 - 30}px`);
+      document.body.appendChild(heart);
+      setTimeout(() => heart.remove(), 900);
+    });
+
+    // Hiệu ứng cánh hoa rơi
+    const canvas = $('particlesCanvas');
+    const ctx = canvas.getContext('2d');
+    let petals = [];
+
+    function resizeCanvas() {
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = Math.floor(window.innerWidth * dpr);
+      canvas.height = Math.floor(window.innerHeight * dpr);
+      canvas.style.width = `${window.innerWidth}px`;
+      canvas.style.height = `${window.innerHeight}px`;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      petals = Array.from({ length: Math.min(25, Math.floor(window.innerWidth / 50)) }, () => new Petal());
+    }
+
+    class Petal {
+      constructor() { this.reset(true); }
+      reset(initial = false) {
+        this.x = Math.random() * window.innerWidth;
+        this.y = initial ? Math.random() * window.innerHeight : -20;
+        this.size = Math.random() * 8 + 5;
+        this.speedY = Math.random() * 0.8 + 0.4;
+        this.speedX = Math.random() * 0.4 - 0.2;
+        this.angle = Math.random() * Math.PI * 2;
+        this.spin = (Math.random() - 0.5) * 0.03;
+        this.opacity = Math.random() * 0.3 + 0.2;
+      }
+      update() {
+        this.y += this.speedY;
+        this.x += Math.sin(this.angle) * 0.5 + this.speedX;
+        this.angle += this.spin;
+        if (this.y > window.innerHeight + 20) this.reset();
+      }
+      draw() {
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.rotate(this.angle);
+        ctx.fillStyle = `rgba(235,115,137,${this.opacity})`;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, this.size, this.size / 2, Math.PI / 4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+    }
+
+    function animatePetals() {
+      ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+      petals.forEach(p => { p.update(); p.draw(); });
+      requestAnimationFrame(animatePetals);
+    }
+
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+    animatePetals();
+
+    function init() {
+      updateCoverUI();
+      renderScrapbookPage(0, false);
+    }
+
+    init();
+  </script>
+</body>
+</html>

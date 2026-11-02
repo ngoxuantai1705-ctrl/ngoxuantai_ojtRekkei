@@ -1,0 +1,1048 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sổ tình yêu</title>
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Canvas Confetti CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+  <!-- Google Fonts & FontAwesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Dancing+Script:wght@600;700&family=Playfair+Display:ital,wght@0,600;0,700;1,400;1,600&family=Quicksand:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            kraft: '#fdfbf7',
+            kraftPaper: '#f6eedf',
+            kraftDark: '#d8c4b6',
+            rosevelvet: '#b54457',
+            rosewood: '#4a1525',
+            parchment: '#faf5eb',
+            leather: '#6e3b3b',
+            goldaccent: '#d4af37',
+            tapeYellow: 'rgba(255, 230, 109, 0.75)',
+            tapePink: 'rgba(255, 182, 193, 0.75)',
+            tapeMint: 'rgba(186, 237, 206, 0.75)',
+            tapeLavender: 'rgba(224, 204, 250, 0.75)'
+          },
+          fontFamily: {
+            hand: ['"Dancing Script"', 'cursive'],
+            note: ['"Caveat"', 'cursive'],
+            serif: ['"Playfair Display"', 'serif'],
+            sans: ['"Quicksand"', 'sans-serif'],
+          },
+          boxShadow: {
+            'book': '0 25px 60px -15px rgba(45, 15, 20, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.3) inset',
+            'polaroid': '0 10px 25px -4px rgba(0, 0, 0, 0.15), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+            'page-inset-left': 'inset -15px 0 25px -10px rgba(0, 0, 0, 0.12)',
+            'page-inset-right': 'inset 15px 0 25px -10px rgba(0, 0, 0, 0.12)',
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    body {
+      background: radial-gradient(circle at 50% 30%, #522730 0%, #30141b 60%, #1a080d 100%);
+      min-height: 100vh;
+      overflow-x: hidden;
+      user-select: none;
+    }
+
+    #particlesCanvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .book-container {
+      perspective: 2000px;
+    }
+
+    .book-spine {
+      background: linear-gradient(to right, #38121a, #521d27, #38121a);
+      box-shadow: 0 0 15px rgba(0,0,0,0.4) inset;
+    }
+
+    .washi-tape {
+      position: absolute;
+      height: 24px;
+      width: 110px;
+      opacity: 0.85;
+      backdrop-filter: blur(1px);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+      border-left: 2px dashed rgba(255,255,255,0.4);
+      border-right: 2px dashed rgba(255,255,255,0.4);
+      z-index: 20;
+    }
+
+    .lined-paper {
+      background-color: #faf6ee;
+      background-image: repeating-linear-gradient(transparent, transparent 27px, #e8ddcc 28px);
+      line-height: 28px;
+    }
+
+    .paperclip {
+      position: absolute;
+      width: 14px;
+      height: 42px;
+      border: 3px solid #b5924b;
+      border-radius: 12px 12px 6px 6px;
+      box-shadow: 1px 2px 4px rgba(0,0,0,0.25);
+      z-index: 25;
+      transform: rotate(-10deg);
+    }
+    .paperclip::before {
+      content: '';
+      position: absolute;
+      top: 6px;
+      left: 2px;
+      right: 2px;
+      bottom: 6px;
+      border: 2px solid #b5924b;
+      border-radius: 8px 8px 4px 4px;
+    }
+
+    .bookmark-ribbon {
+      position: absolute;
+      top: -15px;
+      right: 50px;
+      width: 24px;
+      height: 130px;
+      background: linear-gradient(135deg, #b54457, #801d2d);
+      box-shadow: 2px 4px 10px rgba(0,0,0,0.3);
+      z-index: 30;
+      border-radius: 2px 2px 0 0;
+      cursor: pointer;
+      transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    .bookmark-ribbon:hover {
+      transform: translateY(8px);
+    }
+    .bookmark-ribbon::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      border-left: 12px solid transparent;
+      border-right: 12px solid transparent;
+      border-bottom: 12px solid #faf6ee;
+    }
+
+    .click-burst {
+      position: fixed;
+      pointer-events: none;
+      font-size: 20px;
+      animation: floatUpBurst 0.9s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+      z-index: 9999;
+    }
+    @keyframes floatUpBurst {
+      0% { opacity: 1; transform: translate(0, 0) scale(0.6) rotate(0deg); }
+      50% { opacity: 0.9; transform: translate(var(--dx), -45px) scale(1.3) rotate(15deg); }
+      100% { opacity: 0; transform: translate(calc(var(--dx) * 1.5), -90px) scale(1.6) rotate(-20deg); }
+    }
+
+    .page-turn-anim {
+      animation: softTurn 0.45s ease-in-out;
+    }
+    @keyframes softTurn {
+      0% { opacity: 0.3; transform: scale(0.985); }
+      100% { opacity: 1; transform: scale(1); }
+    }
+
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-thumb { background: #d8c4b6; border-radius: 3px; }
+  </style>
+</head>
+
+<body class="font-sans text-stone-800 relative flex flex-col justify-between min-h-screen">
+
+  <canvas id="particlesCanvas"></canvas>
+
+  <!-- TOP HEADER / NAV BAR -->
+  <header class="relative z-30 w-full bg-black/30 backdrop-blur-md border-b border-white/10 px-4 py-3">
+    <div class="max-w-6xl mx-auto flex items-center justify-between">
+
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-rosevelvet to-amber-200 p-0.5 shadow-md flex items-center justify-center">
+          <div class="w-full h-full rounded-full bg-rosewood flex items-center justify-center text-amber-200">
+            <i class="fa-solid fa-book-heart text-lg"></i>
+          </div>
+        </div>
+        <div>
+          <h1 class="font-serif font-bold text-lg md:text-xl text-rose-100 tracking-wide flex items-center gap-2">
+            <span id="navCoupleTitle"></span>
+          </h1>
+          <p class="text-[11px] text-rose-200/70 font-medium" id="navSubtitle"></p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2 sm:gap-3">
+        <button id="musicToggleBtn" title="Bật / Tắt âm thanh" class="px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-rose-200 text-xs font-medium flex items-center gap-1.5 transition">
+          <i class="fa-solid fa-music" id="musicIcon"></i>
+          <span class="hidden sm:inline" id="musicLabel">Âm nhạc</span>
+        </button>
+
+        <button id="openAddPageModalBtn" class="px-3.5 py-1.5 rounded-full bg-gradient-to-r from-rosevelvet to-rose-400 hover:opacity-90 text-white text-xs sm:text-sm font-semibold flex items-center gap-1.5 shadow-lg shadow-rose-950/40 transition transform active:scale-95">
+          <i class="fa-solid fa-plus-circle"></i>
+          <span>Thêm kỷ niệm</span>
+        </button>
+
+        <button id="toggleCoverBtn" title="Đóng / Mở bìa sổ" class="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 flex items-center justify-center text-amber-200 transition">
+          <i class="fa-solid fa-book" id="coverIcon"></i>
+        </button>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- MAIN SCRAPBOOK STAGE -->
+  <main class="relative z-20 flex-1 flex flex-col items-center justify-center p-3 sm:p-6 md:p-8 max-w-6xl mx-auto w-full">
+
+    <div class="book-container w-full max-w-5xl">
+
+      <!-- BÌA SỔ -->
+      <div id="bookCoverView" class="relative mx-auto w-full max-w-lg bg-gradient-to-br from-[#5c242c] via-[#45161c] to-[#2b0c11] rounded-2xl p-6 sm:p-10 shadow-book border-4 border-[#78303a] text-center text-amber-100 cursor-pointer transition-all duration-500 hover:scale-[1.01] group">
+
+        <div class="absolute left-0 top-0 bottom-0 w-8 bg-[#330f14] border-r-2 border-goldaccent/30 rounded-l-xl"></div>
+        <div class="absolute left-10 top-0 bottom-0 w-0.5 bg-goldaccent/20"></div>
+
+        <div class="border border-goldaccent/40 rounded-xl p-6 sm:p-10 relative">
+
+          <div class="paperclip top-[-15px] right-[25px]"></div>
+
+          <div class="w-20 h-20 mx-auto mb-4 rounded-full bg-gradient-to-tr from-goldaccent/30 to-transparent border border-goldaccent/50 flex items-center justify-center text-goldaccent text-3xl shadow-inner">
+            <i class="fa-solid fa-heart-pulse animate-pulse"></i>
+          </div>
+
+          <span class="text-xs uppercase font-serif tracking-[0.25em] text-amber-200/80 block mb-2"></span>
+
+          <h2 id="coverTitleDisplay" class="font-serif font-black text-3xl sm:text-4xl text-amber-100 tracking-wide mb-3"></h2>
+
+          <div class="w-32 h-0.5 bg-gradient-to-r from-transparent via-goldaccent to-transparent mx-auto mb-4"></div>
+
+          <div class="font-hand text-3xl sm:text-4xl text-rose-300 font-bold mb-6">
+            <span id="coverCoupleDisplay"></span>
+          </div>
+
+          <p id="coverSubDisplay" class="font-sans text-xs sm:text-sm text-amber-200/80 italic max-w-xs mx-auto leading-relaxed mb-6"></p>
+
+          <div class="inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-goldaccent/20 hover:bg-goldaccent/30 border border-goldaccent/60 text-amber-200 text-xs sm:text-sm font-bold tracking-wider uppercase transition shadow-md group-hover:bg-goldaccent group-hover:text-stone-900">
+            <span>Mở sổ</span>
+            <i class="fa-solid fa-arrow-right text-xs"></i>
+          </div>
+
+        </div>
+
+        <div class="absolute top-2 left-2 text-goldaccent/50 text-xl"><i class="fa-solid fa-compass-drafting"></i></div>
+        <div class="absolute top-2 right-2 text-goldaccent/50 text-xl rotate-90"><i class="fa-solid fa-compass-drafting"></i></div>
+        <div class="absolute bottom-2 left-2 text-goldaccent/50 text-xl -rotate-90"><i class="fa-solid fa-compass-drafting"></i></div>
+        <div class="absolute bottom-2 right-2 text-goldaccent/50 text-xl rotate-180"><i class="fa-solid fa-compass-drafting"></i></div>
+
+      </div>
+
+      <!-- TRANG ĐÔI -->
+      <div id="bookSpreadView" class="hidden relative w-full bg-[#e3d7c5] p-2.5 sm:p-4 md:p-6 rounded-3xl shadow-book border-[6px] border-[#42171f] transition-all">
+
+        <div class="bookmark-ribbon" id="bookmarkBtn" title="Về trang đầu"></div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-0 relative bg-kraft rounded-2xl overflow-hidden border border-amber-900/10 min-h-[580px] md:min-h-[640px]">
+
+          <div class="hidden md:block absolute left-1/2 top-0 bottom-0 w-8 -translate-x-1/2 book-spine z-20 pointer-events-none opacity-40"></div>
+          <div class="hidden md:block absolute left-1/2 top-0 bottom-0 w-0.5 -translate-x-1/2 bg-amber-950/20 z-20"></div>
+
+          <!-- TRANG TRÁI -->
+          <div id="leftPage" class="relative p-5 sm:p-7 md:p-8 flex flex-col justify-between bg-kraftPaper shadow-page-inset-left border-b md:border-b-0 md:border-r border-amber-900/15 page-turn-anim">
+
+            <div id="tapeTop" class="washi-tape -top-2 left-1/2 -translate-x-1/2 bg-tapePink rotate-[-2deg]"></div>
+
+            <div class="flex items-center justify-between mb-3 text-stone-500 text-xs">
+              <span id="pageDateDisplay" class="inline-flex items-center gap-1.5 font-semibold text-rosevelvet bg-rose-50/80 px-2.5 py-1 rounded-full border border-rose-200">
+                <i class="fa-regular fa-calendar-heart"></i>
+                <span id="dateVal"></span>
+              </span>
+              <span id="pageMoodDisplay" class="font-hand text-lg text-stone-600 flex items-center gap-1">
+                <span id="moodEmoji"></span> <span id="moodText"></span>
+              </span>
+            </div>
+
+            <div id="polaroidWrapper" class="my-auto transition-transform duration-300 relative group">
+
+              <div class="bg-white p-3 sm:p-4 rounded-sm shadow-polaroid border border-stone-200 text-center max-w-sm mx-auto transform transition duration-300 hover:scale-[1.01] hover:rotate-0" id="polaroidCard" style="transform: rotate(-1.5deg);">
+
+                <div class="relative w-full aspect-[4/3] bg-stone-100 overflow-hidden rounded-sm border border-stone-200/80 mb-3 group/img">
+                  <img id="currentPhoto" src="" alt="" class="w-full h-full object-cover transition-transform duration-500 group-hover/img:scale-105">
+
+                  <div class="absolute inset-0 bg-black/40 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                    <label class="px-3 py-1.5 rounded-full bg-white text-stone-800 text-xs font-bold cursor-pointer hover:bg-rose-50 shadow-md">
+                      <i class="fa-solid fa-camera mr-1 text-rosevelvet"></i> Thay ảnh
+                      <input type="file" id="inlinePhotoUpload" accept="image/*" class="hidden">
+                    </label>
+                  </div>
+                </div>
+
+                <p id="polaroidCaption" class="font-note text-lg sm:text-xl text-stone-700 leading-snug tracking-wide italic min-h-[28px] px-2"></p>
+
+                <div class="mt-2 flex items-center justify-center gap-1 text-[11px] text-stone-400 font-sans">
+                  <i class="fa-solid fa-location-dot text-rose-400"></i>
+                  <span id="polaroidLocation"></span>
+                </div>
+
+              </div>
+
+              <div class="paperclip top-[-8px] left-[30px]"></div>
+
+            </div>
+
+            <div class="pt-3 border-t border-amber-900/10 flex items-center justify-between text-xs text-stone-400">
+              <span class="font-serif italic"></span>
+              <span id="pageNumberLeft" class="font-note font-bold text-base text-stone-500"></span>
+            </div>
+
+          </div>
+
+          <!-- TRANG PHẢI -->
+          <div id="rightPage" class="relative p-5 sm:p-7 md:p-8 flex flex-col justify-between lined-paper shadow-page-inset-right page-turn-anim">
+
+            <div id="tapeRight" class="washi-tape -top-2 right-12 bg-tapeYellow rotate-[3deg]"></div>
+
+            <div>
+              <div class="flex items-start justify-between gap-3 mb-4">
+                <div>
+                  <span class="text-[10px] uppercase font-bold tracking-widest text-rose-500 block"></span>
+                  <h3 id="letterTitle" class="font-serif font-bold text-xl sm:text-2xl text-stone-900 leading-tight"></h3>
+                </div>
+
+                <div class="flex items-center gap-1">
+                  <button id="quickEditBtn" title="Chỉnh sửa" class="w-8 h-8 rounded-full bg-white/80 hover:bg-rose-50 border border-stone-200 text-stone-600 hover:text-rosevelvet flex items-center justify-center text-xs transition shadow-sm">
+                    <i class="fa-solid fa-pen"></i>
+                  </button>
+                  <button id="deletePageBtn" title="Xóa" class="w-8 h-8 rounded-full bg-white/80 hover:bg-red-50 border border-stone-200 text-stone-400 hover:text-red-500 flex items-center justify-center text-xs transition shadow-sm">
+                    <i class="fa-solid fa-trash"></i>
+                  </button>
+                </div>
+              </div>
+
+              <div class="relative">
+                <i class="fa-solid fa-quote-left text-rose-200 text-2xl absolute -top-3 -left-2 opacity-50"></i>
+                <p id="letterBody" class="font-note text-xl sm:text-2xl text-stone-800 leading-[32px] sm:leading-[35px] font-semibold whitespace-pre-line px-2"></p>
+              </div>
+            </div>
+
+            <div class="mt-6 pt-4">
+              <div class="flex items-end justify-between">
+                <div class="hidden sm:flex items-center gap-2 border-2 border-dashed border-rose-300 p-2 rounded-lg bg-white/60">
+                  <span class="text-2xl">💌</span>
+                  <div class="text-[10px] text-stone-500 leading-tight">
+                    <span class="font-bold text-rosevelvet uppercase block">Airmail</span>
+                    <span>Forever</span>
+                  </div>
+                </div>
+
+                <div class="text-right flex-1">
+                  <span class="text-[11px] uppercase tracking-wider text-stone-400 block mb-0.5"></span>
+                  <span id="letterSign" class="font-hand font-bold text-2xl sm:text-3xl text-rosevelvet block"></span>
+                </div>
+              </div>
+
+              <div class="mt-4 pt-2 border-t border-amber-900/10 flex items-center justify-between text-xs text-stone-400">
+                <span id="pagesSummary" class="text-[11px]"></span>
+                <span id="pageNumberRight" class="font-note font-bold text-base text-stone-500"></span>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- SCRAPBOOK CONTROLLER DƯỚI ĐÁY -->
+    <div id="scrapbookControls" class="hidden mt-6 w-full max-w-xl flex flex-wrap items-center justify-center gap-3 bg-black/40 backdrop-blur-md p-2.5 rounded-full border border-white/10 shadow-lg">
+
+      <button id="prevPageBtn" class="px-4 py-2 rounded-full bg-white/10 hover:bg-white/20 active:scale-95 text-rose-100 font-semibold text-xs sm:text-sm flex items-center gap-1.5 transition">
+        <i class="fa-solid fa-chevron-left text-xs"></i>
+        <span>Trước</span>
+      </button>
+
+      <select id="tocSelect" class="px-3 py-1.5 rounded-full bg-stone-900/80 text-rose-200 border border-white/20 text-xs focus:outline-none focus:ring-1 focus:ring-rose-300 max-w-[180px] sm:max-w-[220px] truncate">
+      </select>
+
+      <button id="nextPageBtn" class="px-4 py-2 rounded-full bg-white/10 hover:bg-white/20 active:scale-95 text-rose-100 font-semibold text-xs sm:text-sm flex items-center gap-1.5 transition">
+        <span>Tiếp</span>
+        <i class="fa-solid fa-chevron-right text-xs"></i>
+      </button>
+
+      <button id="burstHeartBtn" title="Bắn tim" class="w-9 h-9 rounded-full bg-rosevelvet hover:bg-rose-600 text-white flex items-center justify-center text-sm shadow-md transition active:scale-90">
+        <i class="fa-solid fa-heart"></i>
+      </button>
+
+    </div>
+
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="relative z-20 py-3 text-center text-xs text-rose-200/60 border-t border-white/5">
+    <p></p>
+  </footer>
+
+  <!-- MODAL: THÊM / SỬA TRANG KỶ NIỆM -->
+  <div id="pageModal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 hidden">
+    <div class="bg-[#faf6ee] rounded-3xl max-w-lg w-full p-5 sm:p-7 shadow-2xl border-2 border-stone-300 max-h-[90vh] overflow-y-auto">
+
+      <div class="flex items-center justify-between pb-3 border-b border-stone-200 mb-4">
+        <h3 id="modalTitle" class="font-serif font-bold text-xl text-rosewood flex items-center gap-2">
+          <i class="fa-solid fa-feather-pointed text-rosevelvet"></i> Kỷ niệm
+        </h3>
+        <button id="closeModalBtn" class="text-stone-400 hover:text-stone-700 text-lg">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <form id="memoryForm" class="space-y-4 text-xs sm:text-sm">
+
+        <div class="p-3 bg-white rounded-2xl border border-stone-200 space-y-2">
+          <label class="block font-bold text-stone-800">Hình ảnh</label>
+
+          <div class="flex items-center gap-2">
+            <label class="flex-1 px-3 py-2 bg-rose-50 border border-dashed border-rose-300 rounded-xl text-center text-rosevelvet font-semibold cursor-pointer hover:bg-rose-100 transition truncate">
+              <i class="fa-solid fa-upload mr-1"></i> Tải ảnh lên
+              <input type="file" id="modalFileInput" accept="image/*" class="hidden">
+            </label>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <span class="text-stone-400 text-xs">Link</span>
+            <input type="url" id="modalPhotoUrl" placeholder="" class="flex-1 px-3 py-1.5 rounded-xl border border-stone-200 text-xs focus:ring-1 focus:ring-rosevelvet focus:outline-none">
+          </div>
+
+          <div id="photoPreviewBox" class="w-full h-32 rounded-xl bg-stone-100 border border-stone-200 overflow-hidden relative hidden">
+            <img id="photoPreviewImg" src="" alt="" class="w-full h-full object-cover">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block font-semibold text-stone-700 mb-1">Chú thích ảnh:</label>
+            <input type="text" id="modalCaption" placeholder="" class="w-full px-3 py-2 rounded-xl border border-stone-200 focus:ring-1 focus:ring-rosevelvet focus:outline-none">
+          </div>
+          <div>
+            <label class="block font-semibold text-stone-700 mb-1">Địa điểm:</label>
+            <input type="text" id="modalLocation" placeholder="" class="w-full px-3 py-2 rounded-xl border border-stone-200 focus:ring-1 focus:ring-rosevelvet focus:outline-none">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block font-semibold text-stone-700 mb-1">Ngày:</label>
+            <input type="date" id="modalDate" class="w-full px-3 py-2 rounded-xl border border-stone-200 focus:ring-1 focus:ring-rosevelvet focus:outline-none" required>
+          </div>
+          <div>
+            <label class="block font-semibold text-stone-700 mb-1">Cảm xúc:</label>
+            <select id="modalMood" class="w-full px-3 py-2 rounded-xl border border-stone-200 focus:ring-1 focus:ring-rosevelvet focus:outline-none">
+              <option value="✨ Hạnh phúc">✨ Hạnh phúc</option>
+              <option value="💖 Say đắm">💖 Say đắm</option>
+              <option value="☕ Bình yên">☕ Bình yên</option>
+              <option value="🥰 Nhớ nhung">🥰 Nhớ nhung</option>
+              <option value="🎉 Vui vẻ">🎉 Vui vẻ</option>
+              <option value="🌟 Kỳ diệu">🌟 Kỳ diệu</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label class="block font-semibold text-stone-700 mb-1">Tiêu đề:</label>
+          <input type="text" id="modalLetterTitle" placeholder="" class="w-full px-3 py-2 rounded-xl border border-stone-200 focus:ring-1 focus:ring-rosevelvet focus:outline-none" required>
+        </div>
+
+        <div>
+          <label class="block font-semibold text-stone-700 mb-1">Nội dung:</label>
+          <textarea id="modalLetterBody" rows="4" placeholder="" class="w-full px-3 py-2 rounded-xl border border-stone-200 focus:ring-1 focus:ring-rosevelvet focus:outline-none leading-relaxed" required></textarea>
+        </div>
+
+        <div>
+          <label class="block font-semibold text-stone-700 mb-1">Chữ ký:</label>
+          <input type="text" id="modalLetterSign" placeholder="" class="w-full px-3 py-2 rounded-xl border border-stone-200 focus:ring-1 focus:ring-rosevelvet focus:outline-none">
+        </div>
+
+        <div class="pt-3 flex items-center justify-end gap-2 border-t border-stone-200">
+          <button type="button" id="cancelModalBtn" class="px-4 py-2 rounded-xl bg-stone-200 hover:bg-stone-300 text-stone-700 font-semibold transition">
+            Hủy
+          </button>
+          <button type="submit" class="px-5 py-2 rounded-xl bg-gradient-to-r from-rosevelvet to-rose-500 hover:opacity-95 text-white font-semibold shadow-md transition">
+            Lưu
+          </button>
+        </div>
+
+      </form>
+    </div>
+  </div>
+
+  <script>
+    class RomanticAcousticSynth {
+      constructor() {
+        this.ctx = null;
+        this.isPlaying = false;
+        this.step = 0;
+        this.timer = null;
+        this.chords = [
+          [261.63, 329.63, 392.00, 493.88],
+          [220.00, 261.63, 329.63, 392.00],
+          [174.61, 220.00, 261.63, 329.63],
+          [196.00, 246.94, 293.66, 392.00]
+        ];
+      }
+
+      init() {
+        if (!this.ctx) {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          if (AudioContext) {
+            this.ctx = new AudioContext();
+          }
+        }
+      }
+
+      playPluck(freq, timeOffset = 0, duration = 1.4) {
+        if (!this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, this.ctx.currentTime + timeOffset);
+
+        gain.gain.setValueAtTime(0.001, this.ctx.currentTime + timeOffset);
+        gain.gain.linearRampToValueAtTime(0.045, this.ctx.currentTime + timeOffset + 0.05);
+        gain.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + timeOffset + duration);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc.start(this.ctx.currentTime + timeOffset);
+        osc.stop(this.ctx.currentTime + timeOffset + duration);
+      }
+
+      playTurnSound() {
+        this.init();
+        if (!this.ctx) return;
+        this.playPluck(380, 0, 0.15);
+        this.playPluck(460, 0.04, 0.18);
+      }
+
+      start() {
+        this.init();
+        if (this.ctx && this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+        this.isPlaying = true;
+        this.loop();
+      }
+
+      stop() {
+        this.isPlaying = false;
+        if (this.timer) clearTimeout(this.timer);
+      }
+
+      loop() {
+        if (!this.isPlaying) return;
+        const chordIdx = Math.floor(this.step / 4) % this.chords.length;
+        const noteIdx = this.step % 4;
+        const currentChord = this.chords[chordIdx];
+        const freq = currentChord[noteIdx];
+
+        this.playPluck(freq, 0, 1.2);
+        this.step++;
+        this.timer = setTimeout(() => this.loop(), 550);
+      }
+    }
+
+    const synth = new RomanticAcousticSynth();
+
+    const STORAGE_KEY = 'our_love_scrapbook_data_v2';
+
+    // Dữ liệu ban đầu rỗng hoàn toàn, không văn bản mẫu
+    const defaultScrapbook = {
+      cover: {
+        title: '',
+        couple: '',
+        quote: ''
+      },
+      pages: []
+    };
+
+    function getStore() {
+      try {
+        const local = localStorage.getItem(STORAGE_KEY);
+        if (local) return JSON.parse(local);
+      } catch (err) {
+        console.warn('Lỗi đọc storage', err);
+      }
+      return defaultScrapbook;
+    }
+
+    function saveStore(data) {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      } catch (err) {
+        console.error('Lỗi ghi storage', err);
+      }
+    }
+
+    let appData = getStore();
+    let currentPageIndex = 0;
+    let isCoverMode = true;
+
+    const bookCoverView = document.getElementById('bookCoverView');
+    const bookSpreadView = document.getElementById('bookSpreadView');
+    const scrapbookControls = document.getElementById('scrapbookControls');
+
+    const currentPhoto = document.getElementById('currentPhoto');
+    const polaroidCaption = document.getElementById('polaroidCaption');
+    const polaroidLocation = document.getElementById('polaroidLocation');
+    const pageDateDisplay = document.getElementById('dateVal');
+    const moodEmoji = document.getElementById('moodEmoji');
+    const moodText = document.getElementById('moodText');
+    const pageNumberLeft = document.getElementById('pageNumberLeft');
+    const polaroidCard = document.getElementById('polaroidCard');
+
+    const letterTitle = document.getElementById('letterTitle');
+    const letterBody = document.getElementById('letterBody');
+    const letterSign = document.getElementById('letterSign');
+    const pagesSummary = document.getElementById('pagesSummary');
+    const pageNumberRight = document.getElementById('pageNumberRight');
+    const tocSelect = document.getElementById('tocSelect');
+
+    function renderScrapbookPage(idx, triggerAnimation = true) {
+      if (!appData.pages || appData.pages.length === 0) {
+        currentPhoto.src = '';
+        polaroidCaption.textContent = '';
+        polaroidLocation.textContent = '';
+        pageDateDisplay.textContent = '';
+        moodEmoji.textContent = '';
+        moodText.textContent = '';
+        letterTitle.textContent = '';
+        letterBody.textContent = '';
+        letterSign.textContent = '';
+        pageNumberLeft.textContent = '';
+        pageNumberRight.textContent = '';
+        pagesSummary.textContent = '';
+        updateTOC();
+        return;
+      }
+
+      if (idx < 0) idx = 0;
+      if (idx >= appData.pages.length) idx = appData.pages.length - 1;
+      currentPageIndex = idx;
+
+      const page = appData.pages[currentPageIndex];
+
+      currentPhoto.src = page.photo || '';
+      polaroidCaption.textContent = page.caption ? `"${page.caption}"` : '';
+      polaroidLocation.textContent = page.location || '';
+
+      if (page.date) {
+        const parts = page.date.split('-');
+        pageDateDisplay.textContent = parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : page.date;
+      } else {
+        pageDateDisplay.textContent = '';
+      }
+
+      if (page.mood) {
+        const moodParts = page.mood.split(' ');
+        moodEmoji.textContent = moodParts[0] || '';
+        moodText.textContent = moodParts.slice(1).join(' ') || '';
+      } else {
+        moodEmoji.textContent = '';
+        moodText.textContent = '';
+      }
+
+      letterTitle.textContent = page.letterTitle || '';
+      letterBody.textContent = page.letterBody || '';
+      letterSign.textContent = page.letterSign || '';
+
+      pageNumberLeft.textContent = `Trang ${currentPageIndex * 2 + 1}`;
+      pageNumberRight.textContent = `Trang ${currentPageIndex * 2 + 2}`;
+      pagesSummary.textContent = `${currentPageIndex + 1} / ${appData.pages.length}`;
+
+      const angles = [-2.5, -1.5, 1.2, 2.2, -0.8];
+      const selectedAngle = angles[currentPageIndex % angles.length];
+      polaroidCard.style.transform = `rotate(${selectedAngle}deg)`;
+
+      updateTOC();
+
+      if (triggerAnimation) {
+        document.getElementById('leftPage').classList.remove('page-turn-anim');
+        document.getElementById('rightPage').classList.remove('page-turn-anim');
+        void document.getElementById('leftPage').offsetWidth;
+        document.getElementById('leftPage').classList.add('page-turn-anim');
+        document.getElementById('rightPage').classList.add('page-turn-anim');
+        synth.playTurnSound();
+      }
+    }
+
+    function updateTOC() {
+      tocSelect.innerHTML = '';
+      if (!appData.pages) return;
+      appData.pages.forEach((p, i) => {
+        const opt = document.createElement('option');
+        opt.value = i;
+        opt.textContent = `${i + 1}. ${p.letterTitle || p.caption || ''}`;
+        if (i === currentPageIndex) opt.selected = true;
+        tocSelect.appendChild(opt);
+      });
+    }
+
+    function showBookSpread() {
+      isCoverMode = false;
+      bookCoverView.classList.add('hidden');
+      bookSpreadView.classList.remove('hidden');
+      scrapbookControls.classList.remove('hidden');
+      document.getElementById('coverIcon').className = "fa-solid fa-book-open";
+      renderScrapbookPage(currentPageIndex, true);
+    }
+
+    function showBookCover() {
+      isCoverMode = true;
+      bookSpreadView.classList.add('hidden');
+      scrapbookControls.classList.add('hidden');
+      bookCoverView.classList.remove('hidden');
+      document.getElementById('coverIcon').className = "fa-solid fa-book";
+      synth.playTurnSound();
+    }
+
+    document.getElementById('toggleCoverBtn').addEventListener('click', () => {
+      if (isCoverMode) showBookSpread();
+      else showBookCover();
+    });
+
+    bookCoverView.addEventListener('click', showBookSpread);
+    document.getElementById('bookmarkBtn').addEventListener('click', () => {
+      renderScrapbookPage(0, true);
+      launchHeartsConfetti();
+    });
+
+    document.getElementById('prevPageBtn').addEventListener('click', () => {
+      if (currentPageIndex > 0) {
+        renderScrapbookPage(currentPageIndex - 1, true);
+      } else {
+        showBookCover();
+      }
+    });
+
+    document.getElementById('nextPageBtn').addEventListener('click', () => {
+      if (currentPageIndex < appData.pages.length - 1) {
+        renderScrapbookPage(currentPageIndex + 1, true);
+      } else {
+        launchHeartsConfetti();
+      }
+    });
+
+    tocSelect.addEventListener('change', (e) => {
+      renderScrapbookPage(parseInt(e.target.value), true);
+    });
+
+    const inlinePhotoUpload = document.getElementById('inlinePhotoUpload');
+    inlinePhotoUpload.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file || !appData.pages[currentPageIndex]) return;
+
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        const base64 = evt.target.result;
+        appData.pages[currentPageIndex].photo = base64;
+        saveStore(appData);
+        currentPhoto.src = base64;
+        launchHeartsConfetti();
+      };
+      reader.readAsDataURL(file);
+    });
+
+    const pageModal = document.getElementById('pageModal');
+    const openAddPageModalBtn = document.getElementById('openAddPageModalBtn');
+    const closeModalBtn = document.getElementById('closeModalBtn');
+    const cancelModalBtn = document.getElementById('cancelModalBtn');
+    const memoryForm = document.getElementById('memoryForm');
+    const quickEditBtn = document.getElementById('quickEditBtn');
+    const deletePageBtn = document.getElementById('deletePageBtn');
+
+    const modalFileInput = document.getElementById('modalFileInput');
+    const modalPhotoUrl = document.getElementById('modalPhotoUrl');
+    const photoPreviewBox = document.getElementById('photoPreviewBox');
+    const photoPreviewImg = document.getElementById('photoPreviewImg');
+
+    let isEditingMode = false;
+    let editingId = null;
+    let currentModalBase64 = '';
+
+    function openModalForAdd() {
+      isEditingMode = false;
+      editingId = null;
+      currentModalBase64 = '';
+      document.getElementById('modalTitle').innerHTML = '<i class="fa-solid fa-plus-circle text-rosevelvet"></i> Thêm kỷ niệm';
+
+      memoryForm.reset();
+      document.getElementById('modalDate').value = new Date().toISOString().split('T')[0];
+      photoPreviewBox.classList.add('hidden');
+      pageModal.classList.remove('hidden');
+    }
+
+    function openModalForEdit() {
+      const curPage = appData.pages[currentPageIndex];
+      if (!curPage) return;
+
+      isEditingMode = true;
+      editingId = curPage.id;
+      currentModalBase64 = curPage.photo;
+
+      document.getElementById('modalTitle').innerHTML = '<i class="fa-solid fa-pen-nib text-rosevelvet"></i> Chỉnh sửa';
+      document.getElementById('modalCaption').value = curPage.caption || '';
+      document.getElementById('modalLocation').value = curPage.location || '';
+      document.getElementById('modalDate').value = curPage.date || '';
+      document.getElementById('modalMood').value = curPage.mood || '✨ Hạnh phúc';
+      document.getElementById('modalLetterTitle').value = curPage.letterTitle || '';
+      document.getElementById('modalLetterBody').value = curPage.letterBody || '';
+      document.getElementById('modalLetterSign').value = curPage.letterSign || '';
+
+      if (curPage.photo && curPage.photo.startsWith('http')) {
+        modalPhotoUrl.value = curPage.photo;
+      } else {
+        modalPhotoUrl.value = '';
+      }
+
+      if (curPage.photo) {
+        photoPreviewImg.src = curPage.photo;
+        photoPreviewBox.classList.remove('hidden');
+      } else {
+        photoPreviewBox.classList.add('hidden');
+      }
+
+      pageModal.classList.remove('hidden');
+    }
+
+    openAddPageModalBtn.addEventListener('click', () => {
+      if (isCoverMode) showBookSpread();
+      openModalForAdd();
+    });
+
+    quickEditBtn.addEventListener('click', openModalForEdit);
+
+    function closeModal() {
+      pageModal.classList.add('hidden');
+    }
+    closeModalBtn.addEventListener('click', closeModal);
+    cancelModalBtn.addEventListener('click', closeModal);
+
+    modalFileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        currentModalBase64 = evt.target.result;
+        photoPreviewImg.src = currentModalBase64;
+        photoPreviewBox.classList.remove('hidden');
+        modalPhotoUrl.value = '';
+      };
+      reader.readAsDataURL(file);
+    });
+
+    modalPhotoUrl.addEventListener('input', (e) => {
+      const url = e.target.value.trim();
+      if (url) {
+        currentModalBase64 = url;
+        photoPreviewImg.src = url;
+        photoPreviewBox.classList.remove('hidden');
+      }
+    });
+
+    memoryForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+
+      const photo = currentModalBase64 || modalPhotoUrl.value.trim();
+      const caption = document.getElementById('modalCaption').value.trim();
+      const location = document.getElementById('modalLocation').value.trim();
+      const date = document.getElementById('modalDate').value;
+      const mood = document.getElementById('modalMood').value;
+      const letterTitle = document.getElementById('modalLetterTitle').value.trim();
+      const letterBody = document.getElementById('modalLetterBody').value.trim();
+      const letterSign = document.getElementById('modalLetterSign').value.trim();
+
+      if (isEditingMode) {
+        const pageIdx = appData.pages.findIndex(p => p.id === editingId);
+        if (pageIdx !== -1) {
+          appData.pages[pageIdx] = {
+            id: editingId,
+            photo,
+            caption,
+            location,
+            date,
+            mood,
+            letterTitle,
+            letterBody,
+            letterSign
+          };
+        }
+      } else {
+        const newPage = {
+          id: Date.now(),
+          photo,
+          caption,
+          location,
+          date,
+          mood,
+          letterTitle,
+          letterBody,
+          letterSign
+        };
+        appData.pages.push(newPage);
+        currentPageIndex = appData.pages.length - 1;
+      }
+
+      saveStore(appData);
+      closeModal();
+      renderScrapbookPage(currentPageIndex, true);
+      launchHeartsConfetti();
+    });
+
+    deletePageBtn.addEventListener('click', () => {
+      if (appData.pages.length === 0) return;
+
+      const confirmDelete = window.confirm('Bạn có chắc muốn xóa trang này?');
+      if (confirmDelete) {
+        appData.pages.splice(currentPageIndex, 1);
+        if (currentPageIndex >= appData.pages.length) {
+          currentPageIndex = Math.max(0, appData.pages.length - 1);
+        }
+        saveStore(appData);
+        renderScrapbookPage(currentPageIndex, true);
+      }
+    });
+
+    const musicToggleBtn = document.getElementById('musicToggleBtn');
+    const musicIcon = document.getElementById('musicIcon');
+    const musicLabel = document.getElementById('musicLabel');
+
+    musicToggleBtn.addEventListener('click', () => {
+      if (synth.isPlaying) {
+        synth.stop();
+        musicIcon.className = 'fa-solid fa-music';
+        musicLabel.textContent = 'Âm nhạc';
+        musicToggleBtn.classList.remove('bg-rosevelvet/80', 'text-white');
+      } else {
+        synth.start();
+        musicIcon.className = 'fa-solid fa-volume-high animate-bounce';
+        musicLabel.textContent = 'Tắt nhạc';
+        musicToggleBtn.classList.add('bg-rosevelvet/80', 'text-white');
+      }
+    });
+
+    function launchHeartsConfetti() {
+      if (typeof confetti === 'function') {
+        confetti({
+          particleCount: 45,
+          spread: 60,
+          origin: { y: 0.65 },
+          colors: ['#ff758f', '#b54457', '#ffd166', '#ffb3c1']
+        });
+      }
+    }
+
+    document.getElementById('burstHeartBtn').addEventListener('click', launchHeartsConfetti);
+
+    window.addEventListener('click', (e) => {
+      if (e.target.closest('button') || e.target.closest('input') || e.target.closest('select') || e.target.closest('textarea')) return;
+      spawnClickHeart(e.clientX, e.clientY);
+    });
+
+    function spawnClickHeart(x, y) {
+      const heartEl = document.createElement('div');
+      heartEl.className = 'click-burst';
+      heartEl.innerHTML = ['❤️', '💖', '💕', '✨', '🌸'][Math.floor(Math.random() * 5)];
+      heartEl.style.left = `${x}px`;
+      heartEl.style.top = `${y}px`;
+      heartEl.style.setProperty('--dx', `${(Math.random() * 60 - 30)}px`);
+      document.body.appendChild(heartEl);
+      setTimeout(() => heartEl.remove(), 900);
+    }
+
+    const canvas = document.getElementById('particlesCanvas');
+    const ctx = canvas.getContext('2d');
+    let petals = [];
+
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    class Petal {
+      constructor() {
+        this.reset();
+      }
+      reset() {
+        this.x = Math.random() * canvas.width;
+        this.y = -20 - Math.random() * 50;
+        this.size = Math.random() * 9 + 6;
+        this.speedY = Math.random() * 0.9 + 0.4;
+        this.speedX = Math.random() * 0.5 - 0.25;
+        this.angle = Math.random() * 360;
+        this.spin = (Math.random() - 0.5) * 0.03;
+        this.opacity = Math.random() * 0.5 + 0.3;
+      }
+      update() {
+        this.y += this.speedY;
+        this.x += Math.sin(this.angle) * 0.6 + this.speedX;
+        this.angle += this.spin;
+        if (this.y > canvas.height + 20) this.reset();
+      }
+      draw() {
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.rotate(this.angle);
+        ctx.fillStyle = `rgba(235, 115, 137, ${this.opacity})`;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, this.size, this.size / 2, Math.PI / 4, 0, 2 * Math.PI);
+        ctx.fill();
+        ctx.restore();
+      }
+    }
+
+    for (let i = 0; i < 28; i++) {
+      petals.push(new Petal());
+    }
+
+    function animatePetals() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      petals.forEach(p => {
+        p.update();
+        p.draw();
+      });
+      requestAnimationFrame(animatePetals);
+    }
+    animatePetals();
+
+    window.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('coverTitleDisplay').textContent = appData.cover.title || '';
+      document.getElementById('coverCoupleDisplay').textContent = appData.cover.couple || '';
+      document.getElementById('coverSubDisplay').textContent = appData.cover.quote ? `"${appData.cover.quote}"` : '';
+
+      renderScrapbookPage(0, false);
+    });
+  </script>
+</body>
+</html>
